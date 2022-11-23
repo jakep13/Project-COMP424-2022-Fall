@@ -6,9 +6,10 @@ import sys
 import numpy as np
 import time
 from copy import deepcopy
+import math
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
-EXP_PARAM = 2
-TIME_LIMIT = 1
+EXP_PARAM =0.113
+TIME_LIMIT = 1.5
 MAX_STEP = 3
 
 @register_agent("student_agent")
@@ -30,6 +31,7 @@ class StudentAgent(Agent):
         self.moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
         # Opposite Directions
         self.opposites = {0: 2, 1: 3, 2: 0, 3: 1}
+        self.autoplay = True
 
         # define Monte Carlo Tree Searc
     class MCTS:
@@ -49,7 +51,7 @@ class StudentAgent(Agent):
 
             def uct_evaluator(self,node):
                 if( node.visits == 0): return 1000000000
-                return (node.wins / node.visits) + EXP_PARAM * np.sqrt(np.log(node.parent.visits)/node.visits)
+                return (node.wins / node.visits) + EXP_PARAM * math.sqrt(math.log(node.parent.visits)/node.visits)
 
             def addVisit(self):
                self. visit+=1
@@ -118,9 +120,11 @@ class StudentAgent(Agent):
                 find((r, c))
         p0_r = find(tuple(my_pos))
         p1_r = find(tuple(adv_pos))
+        
         p0_score = list(father.values()).count(p0_r)
         p1_score = list(father.values()).count(p1_r)
         if p0_r == p1_r:
+            # print("RETURNING FALSE")
             return False, p0_score, p1_score
         # player_win = None
         # win_blocks = -1
@@ -140,29 +144,21 @@ class StudentAgent(Agent):
         #     logging.info("Game ends! It is a Tie!")
         return True, p0_score, p1_score
 
-    def random_walk(self, my_pos, adv_pos, chess_board):
-        """
-        Randomly walk to the next position in the board.
-
-        Parameters
-        ----------
-        my_pos : tuple
-            The position of the agent.
-        adv_pos : tuple
-            The position of the adversary.
-        """
-        print("here is max step")
-        print(MAX_STEP)
-        print(my_pos)
+    def random_walk(self, chess_board, my_pos, adv_pos, max_step = MAX_STEP):
+        # Moves (Up, Right, Down, Left)
         ori_pos = deepcopy(my_pos)
-        steps = np.random.randint(0, MAX_STEP + 1)
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        steps = np.random.randint(0, max_step + 1)
+        # steps2 = np.random.randint(0, max_step + 1)
+        # steps = max(steps, steps2)
+
         # Random Walk
         for _ in range(steps):
             r, c = my_pos
             dir = np.random.randint(0, 4)
-            m_r, m_c = self.moves[dir]
+            m_r, m_c = moves[dir]
             my_pos = (r + m_r, c + m_c)
-            print("l : 162")
+
             # Special Case enclosed by Adversary
             k = 0
             while chess_board[r, c, dir] or my_pos == adv_pos:
@@ -170,7 +166,7 @@ class StudentAgent(Agent):
                 if k > 300:
                     break
                 dir = np.random.randint(0, 4)
-                m_r, m_c = self.moves[dir]
+                m_r, m_c = moves[dir]
                 my_pos = (r + m_r, c + m_c)
 
             if k > 300:
@@ -181,9 +177,8 @@ class StudentAgent(Agent):
         dir = np.random.randint(0, 4)
         r, c = my_pos
         while chess_board[r, c, dir]:
-            # print('stuck here')
             dir = np.random.randint(0, 4)
-        print("reached end")
+
         return my_pos, dir
 
     def set_barrier(self, chess_board, r, c, dir):
@@ -196,7 +191,7 @@ class StudentAgent(Agent):
 
 
     def expand(self, node:MCTS.Node):
-        print('expanding')
+        # print('expanding')
         cur_board = node.board
         mypos = deepcopy(node.mypos)
         advpos = deepcopy(node.advpos)
@@ -204,22 +199,28 @@ class StudentAgent(Agent):
         valid_moves = self.generate_valid_moves(cur_board, mypos, advpos)
 
         for move in valid_moves:
+            
             new_pos , dir = move
+            
             new_board = deepcopy(cur_board)
             self.set_barrier(new_board, new_pos[0], new_pos[1], dir)
+            game_over, p0, p1 = self.check_endgame(mypos, advpos, len(cur_board), new_board)
+            if game_over and p0 < p1:
+                continue
             child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
             node.children.append(child)
         
-        print('done expanding tree')
+        # print('done expanding tree')
 
 
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
     def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
-        for _ in range(0, 6):
-            my_pos, dir = self.random_walk(tuple(mypos), tuple(advpos),chess_board)
+        for _ in range(0, 3):
+            # print("generate move  " + str(i))
+            my_pos, dir = self.random_walk(deepcopy(chess_board), tuple(mypos), tuple(advpos) )
             moves.append((my_pos, dir))
-        print('generated valid moves')
+        # print('generated valid moves')
         return moves
 
 
@@ -234,9 +235,9 @@ class StudentAgent(Agent):
         cur = node
         while(cur is not None):
             cur.visits+=1
-            cur.wins+=1
+            cur.wins+=win
             cur = cur.parent
-        print("propagation complete")
+
 
     def simulate(self,node):
         my_pos = deepcopy(node.mypos)
@@ -244,23 +245,34 @@ class StudentAgent(Agent):
         cur_board = deepcopy(node.board) 
 
         i=0
+        game_over = False
+        # print("here is the length")
+        # print(len(cur_board))
+        game_over, p0, p1 = self.check_endgame(my_pos, adv_pos, len(cur_board), cur_board)
+        # print("GAME OVER IS " + str(game_over))
+        # if game_over: 
+        #         print(p0>p1)
+        #         if p0 > p1 : return 1 
+        #         else: return 0
+
         while(True):
+            # print("finding a move \n")
             if(i%2==0): # if it is my turn
-                print("start random walk")
-                my_pos, dir = self.random_walk(tuple(my_pos), tuple(adv_pos), cur_board )
-                print('end random walk')
+                # print("start random walk my turn")
+                my_pos, dir = self.random_walk( cur_board ,tuple(my_pos), tuple(adv_pos))
+                # print('end random walk')
                 self.set_barrier(cur_board, my_pos[0], my_pos[1], dir)
             else:
-                print("start random walk")
-                adv_pos, dir = self.random_walk(tuple(adv_pos), tuple(my_pos), cur_board )
-                print('end random walk')
+                # print("start random walk - adv turn")
+                adv_pos, dir = self.random_walk( cur_board,tuple(adv_pos), tuple(my_pos) )
+                # print('end random walk')
                 self.set_barrier(cur_board, adv_pos[0], adv_pos[1], dir)
 
             game_over, p0, p1 = self.check_endgame(my_pos, adv_pos, len(cur_board), cur_board)
-            print("game is not won yet - simuatlion")
+            # print("game is not won yet - simuatlion")
             if game_over: 
-                print("simulation complete")
-                if p0 > p1 : return 1 
+                # print("simulation complete")
+                if p0 > p1 : return 1
                 else: return 0
             i+=1
         
@@ -287,9 +299,7 @@ class StudentAgent(Agent):
         MAX_STEP = max_step
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time.time() + TIME_LIMIT
-        print("start of turn")
-        print(my_pos)
-        print(adv_pos)
+     
 
         while time.time() < limit_time:
             # print('time has not expired yet, lets go again')
@@ -309,12 +319,14 @@ class StudentAgent(Agent):
                 explorationNode = best_node
                 # print("null so set to best node")
             
+            game_over, p0, p1 = self.check_endgame(explorationNode.mypos, explorationNode.advpos, len(explorationNode.board), explorationNode.board)
+            if(game_over): continue
             win = self.simulate(explorationNode)
             # print("done simulating")
 
             self.propagate_to_parent(explorationNode, win)
-            # print('end of loop')
-        print("loop complete")
+        #     print('end of loop\n\n\n')
+        # print("loop complete\n\n\n")
 
 
         optimal_node = tree.root.getMaxChild()
