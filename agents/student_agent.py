@@ -8,7 +8,7 @@ import time
 from copy import deepcopy
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
 EXP_PARAM = 2
-TIME_LIMIT = 1980
+TIME_LIMIT = 1960
 MAX_STEP = 3
 
 @register_agent("student_agent")
@@ -37,14 +37,15 @@ class StudentAgent(Agent):
     class MCTS:
         # define a node of the Monte Carlo Tree
         class Node:
-            def __init__(self, board, move, parent, mypos, advpos):
+            def __init__(self, board, parent = None, mypos, advpos, dir = 0):
                 self.board = board
-                self.move = move
+                # self.move = move
                 self.mypos = mypos
                 self.advpos = advpos
                 self.parent = parent
                 self.visits = 0
                 self.wins = 0
+                self.dir = dir
                 self.children = []
                 
 
@@ -68,8 +69,9 @@ class StudentAgent(Agent):
                     return None
                 return max(self.children, key=self.evaluator)
         
-        def __init__(self, board):
-            self.root = self.Node(board, move = None, parent = None)
+        def __init__(self, board, mypos, advpos):
+            self.root = self.Node(board, mypos, advpos)
+
     
 
         
@@ -189,9 +191,6 @@ class StudentAgent(Agent):
         move = self.moves[dir]
         chess_board[r + move[0], c + move[1], self.opposites[dir]] = True
 
-    def apply_move(self, board, mypos, move):
-        r,c,dir = move
-
 
 
     def expand(self, node:MCTS.Node):
@@ -199,19 +198,23 @@ class StudentAgent(Agent):
         mypos = deepcopy(node.mypos)
         advpos = deepcopy(node.advpos)
 
-        valid_moves = self.get_valid_moves(cur_board, mypos, advpos)
+        valid_moves = self.generate_valid_moves(cur_board, mypos, advpos)
 
         for move in valid_moves:
+            new_pos , dir = move
             new_board = deepcopy(cur_board)
-            new_mypos = self.apply_move(new_board, mypos , advpos, move) #TODO WRITE THIS FUNCTION
-            child = self.MCTS.Node(board=new_board, move = move, parent = node, mypos = new_mypos, advpos = new_advpos)
+            self.set_barrier(new_board, new_pos[0], new_pos[1], dir)
+            child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
             node.children.append(child)
 
 
-
-    def get_valid_moves(self, chess_board, mypos, advpos, max_step ):
-        #TODO finish this
+#generate a random list of valid moves from a node position of the form ( (r,c), dir )
+    def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
+        for _ in range(0, 15):
+            my_pos, dir = self.random_walk(tuple(mypos), advpos,chess_board)
+            moves.append((my_pos, dir))
+       
         return moves
 
 
@@ -256,9 +259,6 @@ class StudentAgent(Agent):
 
 
         
-
-        
-
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
         Implement the step function of your agent here.
@@ -275,7 +275,8 @@ class StudentAgent(Agent):
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
         # dummy return
-        tree = self.MCTS(chess_board, my_pos, adv_pos, max_step)
+        MAX_STEP = max_step
+        tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time() + TIME_LIMIT
 
         while time.time() < limit_time:
@@ -294,12 +295,13 @@ class StudentAgent(Agent):
             if not explorationNode:
                 explorationNode = best_node
             
-            win = simulate(explorationNode)
+            win = self.simulate(explorationNode)
 
             self.propagate_to_parent(explorationNode, win)
 
 
         optimal_node = tree.root.getMaxChild()
-        # convert to proper form
+        # convert to proper form TODO
 
-        return my_pos, self.dir_map["u"]
+        # return my_pos, self.dir_map["u"]
+        return optimal_node.mypos, optimal_node.dir
