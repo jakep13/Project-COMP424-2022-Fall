@@ -8,7 +8,7 @@ import time
 from copy import deepcopy
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
 EXP_PARAM = 2
-TIME_LIMIT = 1.5
+TIME_LIMIT = 1
 MAX_STEP = 3
 
 @register_agent("student_agent")
@@ -151,6 +151,8 @@ class StudentAgent(Agent):
         adv_pos : tuple
             The position of the adversary.
         """
+        print("here is max step")
+        print(MAX_STEP)
         print(my_pos)
         ori_pos = deepcopy(my_pos)
         steps = np.random.randint(0, MAX_STEP + 1)
@@ -164,7 +166,6 @@ class StudentAgent(Agent):
             # Special Case enclosed by Adversary
             k = 0
             while chess_board[r, c, dir] or my_pos == adv_pos:
-                print("here is " + str(k) )
                 k += 1
                 if k > 300:
                     break
@@ -180,8 +181,7 @@ class StudentAgent(Agent):
         dir = np.random.randint(0, 4)
         r, c = my_pos
         while chess_board[r, c, dir]:
-            print(chess_board)
-            print('stuck here')
+            # print('stuck here')
             dir = np.random.randint(0, 4)
         print("reached end")
         return my_pos, dir
@@ -283,12 +283,16 @@ class StudentAgent(Agent):
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
         # dummy return
+        global MAX_STEP 
         MAX_STEP = max_step
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time.time() + TIME_LIMIT
+        print("start of turn")
+        print(my_pos)
+        print(adv_pos)
 
         while time.time() < limit_time:
-            print('time has not expired yet, lets go again')
+            # print('time has not expired yet, lets go again')
             best_node = self.select(tree.root)
 
             if best_node is None:
@@ -300,21 +304,19 @@ class StudentAgent(Agent):
                 self.expand(best_node)
 
             explorationNode = best_node.getRandomChild()
-            print("got random child")
+            # print("got random child")
             if not explorationNode:
                 explorationNode = best_node
-                print("null so set to best node")
+                # print("null so set to best node")
             
             win = self.simulate(explorationNode)
-            print("done simulating")
+            # print("done simulating")
 
             self.propagate_to_parent(explorationNode, win)
-            print('end of loop')
+            # print('end of loop')
         print("loop complete")
 
 
         optimal_node = tree.root.getMaxChild()
-        # convert to proper form TODO
-
         # return my_pos, self.dir_map["u"]
         return optimal_node.mypos, optimal_node.dir
