@@ -9,6 +9,7 @@ from copy import deepcopy
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
 EXP_PARAM = 2
 TIME_LIMIT = 1980
+MAX_STEP = 3
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -27,6 +28,8 @@ class StudentAgent(Agent):
             "l": 3,
         }
         self.moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        # Opposite Directions
+        self.opposites = {0: 2, 1: 3, 2: 0, 3: 1}
 
         self.tree = self.MCTS()
 
@@ -137,24 +140,70 @@ class StudentAgent(Agent):
         #     logging.info("Game ends! It is a Tie!")
         return True, p0_score, p1_score
 
-    def set_barrier(self, r, c, dir):
+    def random_walk(self, my_pos, adv_pos, chess_board):
+        """
+        Randomly walk to the next position in the board.
+
+        Parameters
+        ----------
+        my_pos : tuple
+            The position of the agent.
+        adv_pos : tuple
+            The position of the adversary.
+        """
+        ori_pos = deepcopy(my_pos)
+        steps = np.random.randint(0, MAX_STEP + 1)
+        # Random Walk
+        for _ in range(steps):
+            r, c = my_pos
+            dir = np.random.randint(0, 4)
+            m_r, m_c = self.moves[dir]
+            my_pos = (r + m_r, c + m_c)
+
+            # Special Case enclosed by Adversary
+            k = 0
+            while chess_board[r, c, dir] or my_pos == adv_pos:
+                k += 1
+                if k > 300:
+                    break
+                dir = np.random.randint(0, 4)
+                m_r, m_c = self.moves[dir]
+                my_pos = (r + m_r, c + m_c)
+
+            if k > 300:
+                my_pos = ori_pos
+                break
+
+        # Put Barrier
+        dir = np.random.randint(0, 4)
+        r, c = my_pos
+        while chess_board[r, c, dir]:
+            dir = np.random.randint(0, 4)
+
+        return my_pos, dir
+
+    def set_barrier(self, chess_board, r, c, dir):
         # Set the barrier to True
-        self.chess_board[r, c, dir] = True
+        chess_board[r, c, dir] = True
         # Set the opposite barrier to True
         move = self.moves[dir]
-        self.chess_board[r + move[0], c + move[1], self.opposites[dir]] = True
+        chess_board[r + move[0], c + move[1], self.opposites[dir]] = True
+
+    def apply_move(self, board, mypos, move):
+        r,c,dir = move
+
+
 
     def expand(self, node:MCTS.Node):
         cur_board = node.board
         mypos = deepcopy(node.mypos)
         advpos = deepcopy(node.advpos)
-        
 
         valid_moves = self.get_valid_moves(cur_board, mypos, advpos)
 
         for move in valid_moves:
             new_board = deepcopy(cur_board)
-            new_mypos, new_advpos = self.apply_move(new_board, mypos , advpos, move) #TODO WRITE THIS FUNCTION
+            new_mypos = self.apply_move(new_board, mypos , advpos, move) #TODO WRITE THIS FUNCTION
             child = self.MCTS.Node(board=new_board, move = move, parent = node, mypos = new_mypos, advpos = new_advpos)
             node.children.append(child)
 
@@ -182,12 +231,29 @@ class StudentAgent(Agent):
             cur.wins+=1
             cur = cur.parent
 
-    def simulate(node):
+    def simulate(self,node):
         my_pos = deepcopy(node.mypos)
         adv_pos = deepcopy(node.advpos)
         cur_board = deepcopy(node.board) 
 
-        while()
+        i=0
+        while(True):
+            if(i%2==0): # if it is my turn
+                my_pos, dir = self.random_walk(my_pos, adv_pos, cur_board )
+                cur_board = self.apply_move(cur_board, my_pos, adv_pos, dir)
+                self.set_barrier(cur_board, my_pos[0], my_pos[1], dir)
+            else:
+                adv_pos, dir = self.random_walk(adv_pos, my_pos, cur_board )
+                self.set_barrier(cur_board, adv_pos[0], adv_pos[1], dir)
+
+            game_over, p0, p1 = self.check_endgame(my_pos, adv_pos, len(cur_board), cur_board)
+
+            if game_over: 
+                if p0 > p1 : return 1 
+                else: return 0
+
+            i+=1
+
 
         
 
