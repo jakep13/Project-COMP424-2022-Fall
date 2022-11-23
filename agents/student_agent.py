@@ -8,9 +8,10 @@ import time
 from copy import deepcopy
 import math
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
-EXP_PARAM =0.113
-TIME_LIMIT = 1.5
+EXP_PARAM =0.83
+TIME_LIMIT = 2
 MAX_STEP = 3
+DEFAULT_SIMULATIONS = 20
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -217,7 +218,6 @@ class StudentAgent(Agent):
     def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
         for _ in range(0, 3):
-            # print("generate move  " + str(i))
             my_pos, dir = self.random_walk(deepcopy(chess_board), tuple(mypos), tuple(advpos) )
             moves.append((my_pos, dir))
         # print('generated valid moves')
@@ -300,8 +300,9 @@ class StudentAgent(Agent):
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time.time() + TIME_LIMIT
      
-
+        run = 0
         while time.time() < limit_time:
+            run+=1
             # print('time has not expired yet, lets go again')
             best_node = self.select(tree.root)
 
@@ -321,10 +322,11 @@ class StudentAgent(Agent):
             
             game_over, p0, p1 = self.check_endgame(explorationNode.mypos, explorationNode.advpos, len(explorationNode.board), explorationNode.board)
             if(game_over): continue
-            win = self.simulate(explorationNode)
-            # print("done simulating")
+            for _ in range(0,DEFAULT_SIMULATIONS):
+                win = self.simulate(explorationNode)
+                # print("done simulating")
 
-            self.propagate_to_parent(explorationNode, win)
+                self.propagate_to_parent(explorationNode, win)
         #     print('end of loop\n\n\n')
         # print("loop complete\n\n\n")
 
