@@ -8,7 +8,7 @@ import time
 from copy import deepcopy
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
 EXP_PARAM = 2
-TIME_LIMIT = 1960
+TIME_LIMIT = 1.5
 MAX_STEP = 3
 
 @register_agent("student_agent")
@@ -151,6 +151,7 @@ class StudentAgent(Agent):
         adv_pos : tuple
             The position of the adversary.
         """
+        print(my_pos)
         ori_pos = deepcopy(my_pos)
         steps = np.random.randint(0, MAX_STEP + 1)
         # Random Walk
@@ -159,10 +160,11 @@ class StudentAgent(Agent):
             dir = np.random.randint(0, 4)
             m_r, m_c = self.moves[dir]
             my_pos = (r + m_r, c + m_c)
-
+            print("l : 162")
             # Special Case enclosed by Adversary
             k = 0
             while chess_board[r, c, dir] or my_pos == adv_pos:
+                print("here is " + str(k) )
                 k += 1
                 if k > 300:
                     break
@@ -178,8 +180,10 @@ class StudentAgent(Agent):
         dir = np.random.randint(0, 4)
         r, c = my_pos
         while chess_board[r, c, dir]:
+            print(chess_board)
+            print('stuck here')
             dir = np.random.randint(0, 4)
-
+        print("reached end")
         return my_pos, dir
 
     def set_barrier(self, chess_board, r, c, dir):
@@ -192,6 +196,7 @@ class StudentAgent(Agent):
 
 
     def expand(self, node:MCTS.Node):
+        print('expanding')
         cur_board = node.board
         mypos = deepcopy(node.mypos)
         advpos = deepcopy(node.advpos)
@@ -204,15 +209,17 @@ class StudentAgent(Agent):
             self.set_barrier(new_board, new_pos[0], new_pos[1], dir)
             child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
             node.children.append(child)
+        
+        print('done expanding tree')
 
 
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
     def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
-        for _ in range(0, 1):
-            my_pos, dir = self.random_walk(tuple(mypos), advpos,chess_board)
+        for _ in range(0, 6):
+            my_pos, dir = self.random_walk(tuple(mypos), tuple(advpos),chess_board)
             moves.append((my_pos, dir))
-       
+        print('generated valid moves')
         return moves
 
 
@@ -222,8 +229,6 @@ class StudentAgent(Agent):
             cur = cur.getMaxChild()
         return cur
 
-    def simulate(self, node):
-        pass
 
     def propagate_to_parent(self, node:MCTS.Node, win):
         cur = node
@@ -231,6 +236,7 @@ class StudentAgent(Agent):
             cur.visits+=1
             cur.wins+=1
             cur = cur.parent
+        print("propagation complete")
 
     def simulate(self,node):
         my_pos = deepcopy(node.mypos)
@@ -240,19 +246,24 @@ class StudentAgent(Agent):
         i=0
         while(True):
             if(i%2==0): # if it is my turn
-                my_pos, dir = self.random_walk(my_pos, adv_pos, cur_board )
+                print("start random walk")
+                my_pos, dir = self.random_walk(tuple(my_pos), tuple(adv_pos), cur_board )
+                print('end random walk')
                 self.set_barrier(cur_board, my_pos[0], my_pos[1], dir)
             else:
-                adv_pos, dir = self.random_walk(adv_pos, my_pos, cur_board )
+                print("start random walk")
+                adv_pos, dir = self.random_walk(tuple(adv_pos), tuple(my_pos), cur_board )
+                print('end random walk')
                 self.set_barrier(cur_board, adv_pos[0], adv_pos[1], dir)
 
             game_over, p0, p1 = self.check_endgame(my_pos, adv_pos, len(cur_board), cur_board)
-
+            print("game is not won yet - simuatlion")
             if game_over: 
+                print("simulation complete")
                 if p0 > p1 : return 1 
                 else: return 0
-
             i+=1
+        
 
 
         
@@ -277,6 +288,7 @@ class StudentAgent(Agent):
         limit_time = time.time() + TIME_LIMIT
 
         while time.time() < limit_time:
+            print('time has not expired yet, lets go again')
             best_node = self.select(tree.root)
 
             if best_node is None:
@@ -288,13 +300,17 @@ class StudentAgent(Agent):
                 self.expand(best_node)
 
             explorationNode = best_node.getRandomChild()
-
+            print("got random child")
             if not explorationNode:
                 explorationNode = best_node
+                print("null so set to best node")
             
             win = self.simulate(explorationNode)
+            print("done simulating")
 
             self.propagate_to_parent(explorationNode, win)
+            print('end of loop')
+        print("loop complete")
 
 
         optimal_node = tree.root.getMaxChild()
