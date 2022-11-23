@@ -8,10 +8,11 @@ import time
 from copy import deepcopy
 import math
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
-EXP_PARAM =0.83
-TIME_LIMIT = 2
-MAX_STEP = 3
+EXP_PARAM =0.04 # this is most important param to tune
+TIME_LIMIT = 2 # we will have to decrease this to 1.95
+MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
 DEFAULT_SIMULATIONS = 20
+GENERATE_CHILDREN = 2 # the smaller this is , the better the performance for some odd reason
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -208,7 +209,11 @@ class StudentAgent(Agent):
             game_over, p0, p1 = self.check_endgame(mypos, advpos, len(cur_board), new_board)
             if game_over and p0 < p1:
                 continue
+
             child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
+            if game_over and p1>p0:
+                child.addVisit()
+                child.wins = 1000
             node.children.append(child)
         
         # print('done expanding tree')
@@ -217,7 +222,7 @@ class StudentAgent(Agent):
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
     def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
-        for _ in range(0, 3):
+        for _ in range(0, GENERATE_CHILDREN):
             my_pos, dir = self.random_walk(deepcopy(chess_board), tuple(mypos), tuple(advpos) )
             moves.append((my_pos, dir))
         # print('generated valid moves')
