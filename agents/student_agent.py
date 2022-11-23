@@ -31,13 +31,11 @@ class StudentAgent(Agent):
         # Opposite Directions
         self.opposites = {0: 2, 1: 3, 2: 0, 3: 1}
 
-        self.tree = self.MCTS()
-
         # define Monte Carlo Tree Searc
     class MCTS:
         # define a node of the Monte Carlo Tree
         class Node:
-            def __init__(self, board, parent = None, mypos, advpos, dir = 0):
+            def __init__(self, board, mypos, advpos, dir = 0, parent = None):
                 self.board = board
                 # self.move = move
                 self.mypos = mypos
@@ -49,7 +47,7 @@ class StudentAgent(Agent):
                 self.children = []
                 
 
-            def uct_evaluator(node):
+            def uct_evaluator(self,node):
                 if( node.visits == 0): return 1000000000
                 return (node.wins / node.visits) + EXP_PARAM * np.sqrt(np.log(node.parent.visits)/node.visits)
 
@@ -67,7 +65,7 @@ class StudentAgent(Agent):
             def getMaxChild(self):
                 if(not self.children):
                     return None
-                return max(self.children, key=self.evaluator)
+                return max(self.children, key=self.uct_evaluator)
         
         def __init__(self, board, mypos, advpos):
             self.root = self.Node(board, mypos, advpos)
@@ -211,7 +209,7 @@ class StudentAgent(Agent):
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
     def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
-        for _ in range(0, 15):
+        for _ in range(0, 1):
             my_pos, dir = self.random_walk(tuple(mypos), advpos,chess_board)
             moves.append((my_pos, dir))
        
@@ -243,7 +241,6 @@ class StudentAgent(Agent):
         while(True):
             if(i%2==0): # if it is my turn
                 my_pos, dir = self.random_walk(my_pos, adv_pos, cur_board )
-                cur_board = self.apply_move(cur_board, my_pos, adv_pos, dir)
                 self.set_barrier(cur_board, my_pos[0], my_pos[1], dir)
             else:
                 adv_pos, dir = self.random_walk(adv_pos, my_pos, cur_board )
@@ -277,7 +274,7 @@ class StudentAgent(Agent):
         # dummy return
         MAX_STEP = max_step
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
-        limit_time = time() + TIME_LIMIT
+        limit_time = time.time() + TIME_LIMIT
 
         while time.time() < limit_time:
             best_node = self.select(tree.root)
@@ -285,7 +282,7 @@ class StudentAgent(Agent):
             if best_node is None:
                 best_node = tree.root
             
-            game_over, _ , _ = self.check_endgame(best_node)
+            game_over, _ , _ = self.check_endgame(best_node.mypos, best_node.advpos,len(best_node.board), best_node.board )
 
             if( not game_over):
                 self.expand(best_node)
