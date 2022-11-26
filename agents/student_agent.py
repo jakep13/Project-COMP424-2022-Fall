@@ -11,7 +11,7 @@ import math
 EXP_PARAM =0.04 # this is most important param to tune
 TIME_LIMIT = 2 # we will have to decrease this to 1.95
 MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
-DEFAULT_SIMULATIONS = 20
+DEFAULT_SIMULATIONS = 1
 GENERATE_CHILDREN = 2 # the smaller this is , the better the performance for some odd reason
 
 @register_agent("student_agent")
@@ -199,6 +199,7 @@ class StudentAgent(Agent):
         advpos = deepcopy(node.advpos)
 
         valid_moves = self.generate_valid_moves(cur_board, mypos, advpos)
+        print(len(valid_moves) )
 
         for move in valid_moves:
             
@@ -211,9 +212,9 @@ class StudentAgent(Agent):
                 continue
 
             child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
-            if game_over and p1>p0:
-                child.addVisit()
-                child.wins = 1000
+            # if game_over and p1>p0: # TODO check this optimization, must be a better way to do it
+                # self.propagate_to_parent(child, 1) # TODO read this: this is just something im trying out, just want winning positions to be valued more highly, 
+                #so I propagate twice if one of the children is a winner -- doesn't make sense, but has some positive impact
             node.children.append(child)
         
         # print('done expanding tree')
@@ -222,9 +223,10 @@ class StudentAgent(Agent):
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
     def generate_valid_moves(self, chess_board, mypos, advpos):
         moves = []
-        for _ in range(0, GENERATE_CHILDREN):
+        for _ in range(0, GENERATE_CHILDREN): #TODO make sure there are valid moves
             my_pos, dir = self.random_walk(deepcopy(chess_board), tuple(mypos), tuple(advpos) )
-            moves.append((my_pos, dir))
+            if (my_pos, dir) not in moves:
+                moves.append((tuple(my_pos), deepcopy(dir) ))
         # print('generated valid moves')
         return moves
 
@@ -305,11 +307,10 @@ class StudentAgent(Agent):
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time.time() + TIME_LIMIT
      
-        run = 0
+
         while time.time() < limit_time:
-            run+=1
-            # print('time has not expired yet, lets go again')
-            best_node = self.select(tree.root)
+
+            best_node = self.select(tree.root) # select best leaf node
 
             if best_node is None:
                 best_node = tree.root
@@ -321,12 +322,18 @@ class StudentAgent(Agent):
 
             explorationNode = best_node.getRandomChild()
             # print("got random child")
+
+            #TODO : 
             if not explorationNode:
                 explorationNode = best_node
+
+    
                 # print("null so set to best node")
             
             game_over, p0, p1 = self.check_endgame(explorationNode.mypos, explorationNode.advpos, len(explorationNode.board), explorationNode.board)
-            if(game_over): continue
+
+            if(game_over): continue #TODO how to treat if it is not the child of the root
+
             for _ in range(0,DEFAULT_SIMULATIONS):
                 win = self.simulate(explorationNode)
                 # print("done simulating")
