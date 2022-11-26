@@ -326,15 +326,11 @@ class StudentAgent(Agent):
                 self.expand(best_node)
 
             explorationNode = best_node.getRandomChild()
-            # print("got random child")
 
             #TODO : 
             if not explorationNode:
                 explorationNode = best_node
                 continue
-
-    
-                # print("null so set to best node")
             
             game_over, p0, p1 = self.check_endgame(explorationNode.mypos, explorationNode.advpos, len(explorationNode.board), explorationNode.board)
 
@@ -342,22 +338,17 @@ class StudentAgent(Agent):
 
             for _ in range(0,DEFAULT_SIMULATIONS):
                 win = self.simulate(explorationNode)
-                # print("done simulating")
 
                 self.propagate_to_parent(explorationNode, win)
-        #     print('end of loop\n\n\n')
-        # print("loop complete\n\n\n")
+     
         new_chld = []
         for m in tree.root.children:
             game_over, p0, p1 = self.check_endgame(m.mypos, m.advpos, len(m.board), m.board)
             if p0 > p1 : 
-                print("win")
                 return m.mypos, m.dir
-            if p0 < p1 : 
-                print("lose")
             if p0 == p1 : 
                 new_chld.append(m)
-                print("draw")
+
             print(m.uct_evaluator(m, 0) )
 
             tree.root.children = new_chld
