@@ -351,14 +351,9 @@ class StudentAgent1(Agent):
         for m in tree.root.children:
             game_over, p0, p1 = self.check_endgame(m.mypos, m.advpos, len(m.board), m.board)
             if p0 > p1 : 
-                print("win")
                 return m.mypos, m.dir
-            if p0 < p1 : 
-                print("lose")
             if p0 == p1 : 
                 new_chld.append(m)
-                print("draw")
-            print(m.uct_evaluator(m, 0) )
 
             tree.root.children = new_chld
 
