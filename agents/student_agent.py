@@ -12,7 +12,7 @@ EXP_PARAM =0.04 # this is most important param to tune
 TIME_LIMIT = 2 # we will have to decrease this to 1.95
 MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
 DEFAULT_SIMULATIONS = 1
-GENERATE_CHILDREN = 2 # the smaller this is , the better the performance for some odd reason
+GENERATE_CHILDREN = 10 # the smaller this is , the better the performance for some odd reason
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -51,9 +51,9 @@ class StudentAgent(Agent):
                 self.children = []
                 
 
-            def uct_evaluator(self,node):
+            def uct_evaluator(self,node, exp_param):
                 if( node.visits == 0): return 1000000000
-                return (node.wins / node.visits) + EXP_PARAM * math.sqrt(math.log(node.parent.visits)/node.visits)
+                return (node.wins / node.visits) + exp_param * math.sqrt(math.log(node.parent.visits)/node.visits)
 
             def addVisit(self):
                self. visit+=1
@@ -66,10 +66,12 @@ class StudentAgent(Agent):
                     return None
                 return self.children[np.random.randint(0, len(self.children))]
             
-            def getMaxChild(self):
+            def getMaxChild(self, explore = True):
                 if(not self.children):
                     return None
-                return max(self.children, key=self.uct_evaluator)
+                if explore : return max(self.children, key=lambda x : self.uct_evaluator(node=x, exp_param = EXP_PARAM))
+                else: return max(self.children, key=lambda x : self.uct_evaluator(x, exp_param = 0))
+
         
         def __init__(self, board, mypos, advpos):
             self.root = self.Node(board, mypos, advpos)
@@ -199,8 +201,8 @@ class StudentAgent(Agent):
         advpos = deepcopy(node.advpos)
 
         valid_moves = self.generate_valid_moves(cur_board, mypos, advpos)
-        print(len(valid_moves) )
-
+        # print(len(valid_moves) )
+        # print('\n----')
         for move in valid_moves:
             
             new_pos , dir = move
@@ -210,6 +212,7 @@ class StudentAgent(Agent):
             game_over, p0, p1 = self.check_endgame(mypos, advpos, len(cur_board), new_board)
             if game_over and p0 < p1:
                 continue
+            # print('\nvalid move')
 
             child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
             # if game_over and p1>p0: # TODO check this optimization, must be a better way to do it
@@ -342,7 +345,12 @@ class StudentAgent(Agent):
         #     print('end of loop\n\n\n')
         # print("loop complete\n\n\n")
 
+        for m in tree.root.children:
+            game_over, p0, p1 = self.check_endgame(m.mypos, m.advpos, len(m.board), m.board)
+            if p0 > p1 : print("win")
+            if p0 < p1 : print("lose")
+            if p0 == p1 : print("draw")
 
-        optimal_node = tree.root.getMaxChild()
+        optimal_node = tree.root.getMaxChild(explore=False)
         # return my_pos, self.dir_map["u"]
         return optimal_node.mypos, optimal_node.dir
