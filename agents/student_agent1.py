@@ -14,16 +14,16 @@ MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
 DEFAULT_SIMULATIONS = 1
 GENERATE_CHILDREN = 20 # the smaller this is , the better the performance for some odd reason
 
-@register_agent("student_agent")
-class StudentAgent(Agent):
+@register_agent("student_agent1")
+class StudentAgent1(Agent):
     """
     A dummy class for your implementation. Feel free to use this class to
     add any helper functionalities needed for your agent.
     """
 
     def __init__(self):
-        super(StudentAgent, self).__init__()
-        self.name = "StudentAgent"
+        super(StudentAgent1, self).__init__()
+        self.name = "StudentAgent1"
         self.dir_map = {
             "u": 0,
             "r": 1,
