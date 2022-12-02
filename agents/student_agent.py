@@ -8,11 +8,12 @@ import time
 from copy import deepcopy
 import math
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
-EXP_PARAM =0.04 # this is most important param to tune
+EXP_PARAM =0.04 * 10 # this is most important param to tune
 TIME_LIMIT = 2 # we will have to decrease this to 1.95
 MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
 DEFAULT_SIMULATIONS = 1
 GENERATE_CHILDREN = 20 # the smaller this is , the better the performance for some odd reason
+GENERATE_CHILDREN_OPONENT = 20 # the smaller this is , the better the performance for some odd reason
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -210,7 +211,7 @@ class StudentAgent(Agent):
             
             new_board = deepcopy(cur_board)
             self.set_barrier(new_board, new_pos[0], new_pos[1], dir)
-            game_over, p0, p1 = self.check_endgame(mypos, advpos, len(cur_board), new_board)
+            game_over, p0, p1 = self.check_endgame(new_pos, advpos, len(cur_board), new_board)
             if game_over and p0 < p1:
                 continue
             # print('\nvalid move')
@@ -225,12 +226,15 @@ class StudentAgent(Agent):
 
 
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
-    def generate_valid_moves(self, chess_board, mypos, advpos):
+    def generate_valid_moves(self, chess_board, mypos, advpos, numValidMoves=GENERATE_CHILDREN):
         moves = []
-        for _ in range(0, GENERATE_CHILDREN): #TODO make sure there are valid moves
+        _ = 0
+        while len(moves) == 0 or _ < numValidMoves:
+        # for _ in range(0, GENERATE_CHILDREN): #TODO make sure there are valid moves
             my_pos, dir = self.random_walk(deepcopy(chess_board), tuple(mypos), tuple(advpos) )
             if (my_pos, dir) not in moves:
                 moves.append((tuple(my_pos), deepcopy(dir) ))
+            _ = _ + 1
         # print('generated valid moves')
         return moves
 
@@ -255,11 +259,11 @@ class StudentAgent(Agent):
         adv_pos = deepcopy(node.advpos)
         cur_board = deepcopy(node.board) 
 
-        i=0
+        i=1
         game_over = False
         # print("here is the length")
         # print(len(cur_board))
-        game_over, p0, p1 = self.check_endgame(my_pos, adv_pos, len(cur_board), cur_board)
+        # game_over, p0, p1 = self.check_endgame(my_pos, adv_pos, len(cur_board), cur_board)
         # print("GAME OVER IS " + str(game_over))
         # if game_over: 
         #         print(p0>p1)
@@ -314,7 +318,6 @@ class StudentAgent(Agent):
      
 
         while time.time() < limit_time:
-
             best_node = self.select(tree.root) # select best leaf node
 
             if best_node is None:
@@ -326,32 +329,37 @@ class StudentAgent(Agent):
                 self.expand(best_node)
 
             explorationNode = best_node.getRandomChild()
+            # print("got random child")
 
             #TODO : 
             if not explorationNode:
-                explorationNode = best_node
                 continue
+
+    
+                # print("null so set to best node")
             
             game_over, p0, p1 = self.check_endgame(explorationNode.mypos, explorationNode.advpos, len(explorationNode.board), explorationNode.board)
 
-            if(game_over): continue #TODO how to treat if it is not the child of the root
+            if(game_over): 
+                if p0 > p1 : 
+                    self.propagate_to_parent(explorationNode, 1)
+                if p0 < p1 : 
+                    self.propagate_to_parent(explorationNode, -1)
+                if p0 == p1 : 
+                    self.propagate_to_parent(explorationNode, 0)
+                continue #TODO how to treat if it is not the child of the root
 
-            for _ in range(0,DEFAULT_SIMULATIONS):
-                win = self.simulate(explorationNode)
+            win = self.simulate(explorationNode)
+            self.propagate_to_parent(explorationNode, win)
 
-                self.propagate_to_parent(explorationNode, win)
-     
-        new_chld = []
+        #     print('end of loop\n\n\n')
+        # print("loop complete\n\n\n")
         for m in tree.root.children:
             game_over, p0, p1 = self.check_endgame(m.mypos, m.advpos, len(m.board), m.board)
             if p0 > p1 : 
                 return m.mypos, m.dir
-            if p0 == p1 : 
-                new_chld.append(m)
-
-            print(m.uct_evaluator(m, 0) )
-
-            tree.root.children = new_chld
+            if p0 < p1 : 
+                tree.root.children.remove(m)
 
         optimal_node = tree.root.getMaxChild(explore=False)
         # return my_pos, self.dir_map["u"]
