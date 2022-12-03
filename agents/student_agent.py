@@ -8,12 +8,14 @@ import time
 from copy import deepcopy
 import math
 # import math #MUST ADD THIS TO REQUIREMENTS.TXT!!!
-EXP_PARAM =0.04 * 10 # this is most important param to tune
-TIME_LIMIT = 2 # we will have to decrease this to 1.95
+EXP_PARAM = 0.0001 # this is most important param to tune
+TIME_LIMIT = 1.95 # we will have to decrease this to 1.95
 MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
 DEFAULT_SIMULATIONS = 1
 GENERATE_CHILDREN = 20 # the smaller this is , the better the performance for some odd reason
-GENERATE_CHILDREN_OPONENT = 20 # the smaller this is , the better the performance for some odd reason
+CHILD_GENERATION_DECAY = 0
+SIMULATION_DECAY = 50 # decay for worth of simulation results
+SIMULATION_CONST = 1
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -48,6 +50,7 @@ class StudentAgent(Agent):
                 self.parent = parent
                 self.visits = 0
                 self.wins = 0
+                self.depth = 0 if parent is None else  parent.depth + 1
                 self.dir = dir
                 self.children = []
                 
@@ -259,7 +262,7 @@ class StudentAgent(Agent):
         adv_pos = deepcopy(node.advpos)
         cur_board = deepcopy(node.board) 
 
-        i=1
+        i=0
         game_over = False
         # print("here is the length")
         # print(len(cur_board))
@@ -272,7 +275,7 @@ class StudentAgent(Agent):
 
         while(True):
             # print("finding a move \n")
-            if(i%2==0): # if it is my turn
+            if(i%2==1): # if it is my turn
                 # print("start random walk my turn")
                 my_pos, dir = self.random_walk( cur_board ,tuple(my_pos), tuple(adv_pos))
                 # print('end random walk')
@@ -287,8 +290,9 @@ class StudentAgent(Agent):
             # print("game is not won yet - simuatlion")
             if game_over: 
                 # print("simulation complete")
-                if p0 > p1 : return 1
-                if p1 > p0: return -1
+                decay = SIMULATION_CONST * math.exp(-(node.depth + i)/SIMULATION_DECAY)
+                if p0 > p1 : return decay
+                if p1 > p0: return -decay
                 else: return 0
             i+=1
         
@@ -316,7 +320,7 @@ class StudentAgent(Agent):
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time.time() + TIME_LIMIT
      
-
+        numIter = 0
         while time.time() < limit_time:
             best_node = self.select(tree.root) # select best leaf node
 
@@ -341,19 +345,21 @@ class StudentAgent(Agent):
             game_over, p0, p1 = self.check_endgame(explorationNode.mypos, explorationNode.advpos, len(explorationNode.board), explorationNode.board)
 
             if(game_over): 
+                decay = SIMULATION_CONST * math.exp(-explorationNode.depth/SIMULATION_DECAY)
                 if p0 > p1 : 
-                    self.propagate_to_parent(explorationNode, 1)
+                    self.propagate_to_parent(explorationNode, decay)
                 if p0 < p1 : 
-                    self.propagate_to_parent(explorationNode, -1)
+                    self.propagate_to_parent(explorationNode, -decay)
                 if p0 == p1 : 
                     self.propagate_to_parent(explorationNode, 0)
                 continue #TODO how to treat if it is not the child of the root
 
             win = self.simulate(explorationNode)
             self.propagate_to_parent(explorationNode, win)
+            numIter += 1
 
         #     print('end of loop\n\n\n')
-        # print("loop complete\n\n\n")
+        print("NumIter = " + str(numIter) + "\n")
         for m in tree.root.children:
             game_over, p0, p1 = self.check_endgame(m.mypos, m.advpos, len(m.board), m.board)
             if p0 > p1 : 
