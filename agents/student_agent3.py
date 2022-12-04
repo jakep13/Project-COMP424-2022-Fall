@@ -14,19 +14,19 @@ MAX_STEP = 3 # this one doesn't matter, dont tune it, just leave it
 DEFAULT_SIMULATIONS = 1
 GENERATE_CHILDREN = 20 # the smaller this is , the better the performance for some odd reason
 CHILD_GENERATION_DECAY = 0
-SIMULATION_DECAY = 1 # decay for worth of simulation results
+SIMULATION_DECAY = 50 # decay for worth of simulation results
 SIMULATION_CONST = 1
 
-@register_agent("student_agent")
-class StudentAgent(Agent):
+@register_agent("student_agent3")
+class StudentAgent3(Agent):
     """
     A dummy class for your implementation. Feel free to use this class to
     add any helper functionalities needed for your agent.
     """
 
     def __init__(self):
-        super(StudentAgent, self).__init__()
-        self.name = "StudentAgent"
+        super(StudentAgent3, self).__init__()
+        self.name = "StudentAgent3"
         self.dir_map = {
             "u": 0,
             "r": 1,
@@ -215,23 +215,11 @@ class StudentAgent(Agent):
             new_board = deepcopy(cur_board)
             self.set_barrier(new_board, new_pos[0], new_pos[1], dir)
             game_over, p0, p1 = self.check_endgame(new_pos, advpos, len(cur_board), new_board)
-            if game_over:
-                if p0 < p1:
-                    continue
-                if p0 > p1:
-                    child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
-                    node.children.append(child)
-                    continue
-
-            # print('\nvalid move')
-            new_advpos, adv_dir = self.random_walk( new_board,tuple(advpos), tuple(new_pos) )
-            # print('end random walk')
-            self.set_barrier(new_board, new_advpos[0], new_advpos[1], adv_dir)
-            game_over, p0, p1 = self.check_endgame(new_pos, new_advpos, len(cur_board), new_board)
             if game_over and p0 < p1:
                 continue
+            # print('\nvalid move')
 
-            child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = new_advpos, dir = dir)
+            child = self.MCTS.Node(board=new_board, parent = node, mypos = new_pos, advpos = advpos, dir = dir)
             # if game_over and p1>p0: # TODO check this optimization, must be a better way to do it
                 # self.propagate_to_parent(child, 1) # TODO read this: this is just something im trying out, just want winning positions to be valued more highly, 
                 #so I propagate twice if one of the children is a winner -- doesn't make sense, but has some positive impact
@@ -243,9 +231,13 @@ class StudentAgent(Agent):
 #generate a random list of valid moves from a node position of the form ( (r,c), dir )
     def generate_valid_moves(self, chess_board, mypos, advpos, numValidMoves=GENERATE_CHILDREN):
         moves = []
-        for _ in range(0, GENERATE_CHILDREN): #TODO make sure there are valid moves
+        _ = 0
+        while len(moves) == 0 or _ < numValidMoves:
+        # for _ in range(0, GENERATE_CHILDREN): #TODO make sure there are valid moves
             my_pos, dir = self.random_walk(deepcopy(chess_board), tuple(mypos), tuple(advpos) )
-            moves.append((tuple(my_pos), deepcopy(dir) ))
+            if (my_pos, dir) not in moves:
+                moves.append((tuple(my_pos), deepcopy(dir) ))
+            _ = _ + 1
         # print('generated valid moves')
         return moves
 
@@ -283,7 +275,7 @@ class StudentAgent(Agent):
 
         while(True):
             # print("finding a move \n")
-            if(i%2==0): # if it is my turn
+            if(i%2==1): # if it is my turn
                 # print("start random walk my turn")
                 my_pos, dir = self.random_walk( cur_board ,tuple(my_pos), tuple(adv_pos))
                 # print('end random walk')
@@ -298,7 +290,7 @@ class StudentAgent(Agent):
             # print("game is not won yet - simuatlion")
             if game_over: 
                 # print("simulation complete")
-                decay = SIMULATION_CONST * math.exp(-(node.depth + i/2)/SIMULATION_DECAY)
+                decay = SIMULATION_CONST * math.exp(-(node.depth + i)/SIMULATION_DECAY)
                 if p0 > p1 : return decay
                 if p1 > p0: return -decay
                 else: return 0
@@ -328,7 +320,6 @@ class StudentAgent(Agent):
         tree = self.MCTS(board = chess_board,mypos= my_pos, advpos=adv_pos)
         limit_time = time.time() + TIME_LIMIT
      
-        numIter = 0
         while time.time() < limit_time:
             best_node = self.select(tree.root) # select best leaf node
 
@@ -364,10 +355,8 @@ class StudentAgent(Agent):
 
             win = self.simulate(explorationNode)
             self.propagate_to_parent(explorationNode, win)
-            numIter += 1
 
         #     print('end of loop\n\n\n')
-        print("NumIter = " + str(numIter) + "\n")
         for m in tree.root.children:
             game_over, p0, p1 = self.check_endgame(m.mypos, m.advpos, len(m.board), m.board)
             if p0 > p1 : 
