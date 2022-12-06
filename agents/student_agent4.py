@@ -287,7 +287,7 @@ class StudentAgent4(Agent):
             # print("game is not won yet - simuatlion")
             if game_over: 
                 # print("simulation complete")
-                decay = SIMULATION_CONST * math.exp(-(node.depth + i)/SIMULATION_DECAY)
+                decay = SIMULATION_CONST * math.exp(-(node.depth + i/2)/SIMULATION_DECAY)
                 if p0 > p1 : return decay
                 if p1 > p0: return -decay
                 else: return 0
